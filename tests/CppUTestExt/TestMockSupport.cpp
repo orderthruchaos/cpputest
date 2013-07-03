@@ -202,6 +202,20 @@ TEST(MockSupportTest, strictOrderViolated)
 	CHECK_EXPECTED_MOCK_FAILURE(expectedFailure);
 }
 
+TEST(MockSupportTest, strictOrderViolatedWithinAScope)
+{
+	mock().strictOrder();
+	addFunctionToExpectationsList("foo1", 1)->callWasMade(2);
+	addFunctionToExpectationsList("foo2", 2)->callWasMade(1);
+	MockCallOrderFailure expectedFailure(mockFailureTest(), *expectationsList);
+	mock("scope").expectOneCall("foo1");
+	mock("scope").expectOneCall("foo2");
+	mock("scope").actualCall("foo2");
+	mock("scope").actualCall("foo1");
+	mock("scope").checkExpectations();
+	CHECK_EXPECTED_MOCK_FAILURE(expectedFailure);
+}
+
 TEST(MockSupportTest, strictOrderNotViolatedWithTwoMocks)
 {
 	mock("mock1").strictOrder();
@@ -475,18 +489,18 @@ TEST(MockSupportTest, threeExpectedAndActual)
 class MyTypeForTesting
 {
 public:
-	MyTypeForTesting(int val) : value(val){};
+	MyTypeForTesting(int val) : value(val){}
 	int value;
 };
 
 class MyTypeForTestingComparator : public MockNamedValueComparator
 {
 public:
-	virtual bool isEqual(void* object1, void* object2)
+	virtual bool isEqual(const void* object1, const void* object2)
 	{
 		return ((MyTypeForTesting*)object1)->value == ((MyTypeForTesting*)object2)->value;
 	}
-	virtual SimpleString valueToString(void* object)
+	virtual SimpleString valueToString(const void* object)
 	{
 		return StringFrom(((MyTypeForTesting*)object)->value);
 	}
@@ -515,12 +529,12 @@ TEST(MockSupportTest, customObjectParameterSucceeds)
 	mock().removeAllComparators();
 }
 
-bool myTypeIsEqual(void* object1, void* object2)
+static bool myTypeIsEqual(const void* object1, const void* object2)
 {
 	return ((MyTypeForTesting*)object1)->value == ((MyTypeForTesting*)object2)->value;
 }
 
-SimpleString myTypeValueToString(void* object)
+static SimpleString myTypeValueToString(const void* object)
 {
 	return StringFrom(((MyTypeForTesting*)object)->value);
 }
@@ -934,6 +948,39 @@ TEST(MockSupportTest, shouldntFailTwice)
 	mock().checkExpectations();
 	LONGS_EQUAL(1, MockFailureReporterForTest::getReporter()->getAmountOfTestFailures());
 	CLEAR_MOCK_FAILURE();
+}
+
+class StubComparator : public MockNamedValueComparator
+{
+public:
+	virtual bool isEqual(const void*, const void*)
+	{
+		return true;
+	}
+	virtual SimpleString valueToString(const void*)
+	{
+		return "";
+	}
+};
+
+class SomeClass
+{};
+
+static void functionWithConstParam(const SomeClass param)
+{
+	mock().actualCall("functionWithConstParam").withParameterOfType("SomeClass", "param", &param);
+}
+
+TEST(MockSupportTest, shouldSupportConstParameters)
+{
+	StubComparator comparator;
+	mock().installComparator("SomeClass", comparator);
+
+	SomeClass param;
+	mock().expectOneCall("functionWithConstParam").withParameterOfType("SomeClass", "param", &param);
+	functionWithConstParam(param);
+
+	mock().checkExpectations();
 }
 
 

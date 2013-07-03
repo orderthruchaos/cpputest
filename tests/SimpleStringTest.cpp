@@ -42,8 +42,8 @@ TEST(SimpleString, defaultAllocatorIsNewArrayAllocator)
 class MyOwnStringAllocator : public TestMemoryAllocator
 {
 public:
-	MyOwnStringAllocator() : memoryWasAllocated(false) {};
-	virtual ~MyOwnStringAllocator() {};
+	MyOwnStringAllocator() : memoryWasAllocated(false) {}
+	virtual ~MyOwnStringAllocator() {}
 
 	bool memoryWasAllocated;
 	char* alloc_memory(size_t size, const char* file, int line)
@@ -439,14 +439,16 @@ TEST(SimpleString, StringFromFormat)
 
 TEST(SimpleString, StringFromFormatpointer)
 {
-	//this is not a great test. but %p is odd on mingw
-	SimpleString h1 = StringFromFormat("%p", 1);
+	//this is not a great test. but %p is odd on mingw and even more odd on Solaris.
+	SimpleString h1 = StringFromFormat("%p", (void*) 1);
 	if (h1.size() == 3)
 		STRCMP_EQUAL("0x1", h1.asCharString())
     else if (h1.size() == 1)
 		STRCMP_EQUAL("1", h1.asCharString())        // Solaris
 	else if (h1.size() == 8)
 		STRCMP_EQUAL("00000001", h1.asCharString())
+	else if (h1.size() == 1)
+		STRCMP_EQUAL("1", h1.asCharString())
 	else
 		FAIL("Off %p behavior")
 }
@@ -555,6 +557,12 @@ TEST(SimpleString, fromStdString)
 	STRCMP_EQUAL("hello", s1.asCharString());
 }
 
+TEST(SimpleString, CHECK_EQUAL_unsigned_long)
+{
+	unsigned long i = 0xffffffffUL;
+	CHECK_EQUAL(i, i);
+}
+
 TEST(SimpleString, CHECK_EQUAL_Uint32_t)
 {
 	uint32_t i = 0xffffffff;
@@ -571,6 +579,14 @@ TEST(SimpleString, CHECK_EQUAL_Uint8_t)
 {
 	uint8_t i = 0xff;
 	CHECK_EQUAL(i, i);
+}
+
+TEST(SimpleString, unsigned_long)
+{
+	unsigned long i = 0xffffffffUL;
+
+	SimpleString result = StringFrom(i);
+	CHECK_EQUAL("4294967295 (0xffffffff)", result);
 }
 
 TEST(SimpleString, Uint32_t)

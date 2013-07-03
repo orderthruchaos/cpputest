@@ -100,12 +100,8 @@ void cpputest_free_location_with_leak_detection(void* buffer, const char* file, 
 
 #if CPPUTEST_USE_STD_CPP_LIB
 #define UT_THROW_BAD_ALLOC_WHEN_NULL(memory) if (memory == NULL) throw std::bad_alloc();
-#define UT_THROW(except) throw (except)
-#define UT_THROW_EMPTY() throw ()
 #else
 #define UT_THROW_BAD_ALLOC_WHEN_NULL(memory)
-#define UT_THROW(except)
-#define UT_THROW_EMPTY()
 #endif
 
 static void* mem_leak_operator_new (size_t size) UT_THROW(std::bad_alloc)
@@ -115,7 +111,7 @@ static void* mem_leak_operator_new (size_t size) UT_THROW(std::bad_alloc)
 	return memory;
 }
 
-static void* mem_leak_operator_new_nothrow (size_t size) UT_THROW_EMPTY()
+static void* mem_leak_operator_new_nothrow (size_t size) UT_NOTHROW
 {
 	return MemoryLeakWarningPlugin::getGlobalDetector()->allocMemory(getCurrentNewAllocator(), size);
 }
@@ -134,7 +130,7 @@ static void* mem_leak_operator_new_array (size_t size) UT_THROW(std::bad_alloc)
 	return memory;
 }
 
-static void* mem_leak_operator_new_array_nothrow (size_t size) UT_THROW_EMPTY()
+static void* mem_leak_operator_new_array_nothrow (size_t size) UT_NOTHROW
 {
 	return MemoryLeakWarningPlugin::getGlobalDetector()->allocMemory(getCurrentNewArrayAllocator(), size);
 }
@@ -146,13 +142,13 @@ static void* mem_leak_operator_new_array_debug (size_t size, const char* file, i
 	return memory;
 }
 
-static void mem_leak_operator_delete (void* mem) UT_THROW_EMPTY()
+static void mem_leak_operator_delete (void* mem) UT_NOTHROW
 {
 	MemoryLeakWarningPlugin::getGlobalDetector()->invalidateMemory((char*) mem);
 	MemoryLeakWarningPlugin::getGlobalDetector()->deallocMemory(getCurrentNewAllocator(), (char*) mem);
 }
 
-static void mem_leak_operator_delete_array (void* mem) UT_THROW_EMPTY()
+static void mem_leak_operator_delete_array (void* mem) UT_NOTHROW
 {
 	MemoryLeakWarningPlugin::getGlobalDetector()->invalidateMemory((char*) mem);
 	MemoryLeakWarningPlugin::getGlobalDetector()->deallocMemory(getCurrentNewArrayAllocator(), (char*) mem);
@@ -165,7 +161,7 @@ static void* normal_operator_new (size_t size) UT_THROW(std::bad_alloc)
 	return memory;
 }
 
-static void* normal_operator_new_nothrow (size_t size) UT_THROW_EMPTY()
+static void* normal_operator_new_nothrow (size_t size) UT_NOTHROW
 {
 	return PlatformSpecificMalloc(size);
 }
@@ -184,7 +180,7 @@ static void* normal_operator_new_array (size_t size) UT_THROW(std::bad_alloc)
 	return memory;
 }
 
-static void* normal_operator_new_array_nothrow (size_t size) UT_THROW_EMPTY()
+static void* normal_operator_new_array_nothrow (size_t size) UT_NOTHROW
 {
 	return PlatformSpecificMalloc(size);
 }
@@ -196,24 +192,24 @@ static void* normal_operator_new_array_debug (size_t size, const char* /*file*/,
 	return memory;
 }
 
-static void normal_operator_delete (void* mem) UT_THROW_EMPTY()
+static void normal_operator_delete (void* mem) UT_NOTHROW
 {
 	PlatformSpecificFree(mem);
 }
 
-static void normal_operator_delete_array (void* mem) UT_THROW_EMPTY()
+static void normal_operator_delete_array (void* mem) UT_NOTHROW
 {
 	PlatformSpecificFree(mem);
 }
 
 static void *(*operator_new_fptr)(size_t size) UT_THROW(std::bad_alloc) = mem_leak_operator_new;
-static void *(*operator_new_nothrow_fptr)(size_t size) UT_THROW_EMPTY() = mem_leak_operator_new_nothrow;
+static void *(*operator_new_nothrow_fptr)(size_t size) UT_NOTHROW = mem_leak_operator_new_nothrow;
 static void *(*operator_new_debug_fptr)(size_t size, const char* file, int line) UT_THROW(std::bad_alloc) = mem_leak_operator_new_debug;
 static void *(*operator_new_array_fptr)(size_t size) UT_THROW(std::bad_alloc) = mem_leak_operator_new_array;
-static void *(*operator_new_array_nothrow_fptr)(size_t size) UT_THROW_EMPTY() = mem_leak_operator_new_array_nothrow;
+static void *(*operator_new_array_nothrow_fptr)(size_t size) UT_NOTHROW = mem_leak_operator_new_array_nothrow;
 static void *(*operator_new_array_debug_fptr)(size_t size, const char* file, int line) UT_THROW(std::bad_alloc) = mem_leak_operator_new_array_debug;
-static void (*operator_delete_fptr)(void* mem) UT_THROW_EMPTY() = mem_leak_operator_delete;
-static void (*operator_delete_array_fptr)(void* mem) UT_THROW_EMPTY() = mem_leak_operator_delete_array;
+static void (*operator_delete_fptr)(void* mem) UT_NOTHROW = mem_leak_operator_delete;
+static void (*operator_delete_array_fptr)(void* mem) UT_NOTHROW = mem_leak_operator_delete_array;
 
 void* operator new(size_t size) UT_THROW(std::bad_alloc)
 {
@@ -225,9 +221,14 @@ void* operator new(size_t size, const char* file, int line) UT_THROW(std::bad_al
 	return operator_new_debug_fptr(size, file, line);
 }
 
-void operator delete(void* mem) UT_THROW_EMPTY()
+void operator delete(void* mem) UT_NOTHROW
 {
 	operator_delete_fptr(mem);
+}
+
+void operator delete(void* mem, const char*, int) UT_NOTHROW
+{
+	return operator_delete_fptr(mem);
 }
 
 void* operator new[](size_t size) UT_THROW(std::bad_alloc)
@@ -240,19 +241,25 @@ void* operator new [](size_t size, const char* file, int line) UT_THROW(std::bad
 	return operator_new_array_debug_fptr(size, file, line);
 }
 
-void operator delete[](void* mem) UT_THROW_EMPTY()
+void operator delete[](void* mem) UT_NOTHROW
 {
 	 operator_delete_array_fptr(mem);
 }
 
+void operator delete[](void* mem, const char*, int) UT_NOTHROW
+{
+	 operator_delete_array_fptr(mem);
+}
+
+
 #if CPPUTEST_USE_STD_CPP_LIB
 
-void* operator new(size_t size, const std::nothrow_t&) throw()
+void* operator new(size_t size, const std::nothrow_t&) UT_NOTHROW
 {
 	return operator_new_nothrow_fptr(size);
 }
 
-void* operator new[](size_t size, const std::nothrow_t&) throw()
+void* operator new[](size_t size, const std::nothrow_t&) UT_NOTHROW
 {
 	return operator_new_array_nothrow_fptr(size);
 }

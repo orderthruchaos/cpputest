@@ -39,6 +39,7 @@
 
 
 #define TEST_GROUP_BASE(testGroup, baseclass) \
+  extern int externTestGroup##testGroup; \
   int externTestGroup##testGroup = 0; \
   struct TEST_GROUP_##CppUTestGroup##testGroup : public baseclass
 
@@ -55,39 +56,54 @@
   virtual void teardown()
 
 #define TEST(testGroup, testName) \
+  /* External declarations for strict compilers */ \
+  class TEST_##testGroup##_##testName##_TestShell; \
+  extern TEST_##testGroup##_##testName##_TestShell TEST_##testGroup##_##testName##_TestShell_instance; \
+  \
   class TEST_##testGroup##_##testName##_Test : public TEST_GROUP_##CppUTestGroup##testGroup \
 { public: TEST_##testGroup##_##testName##_Test () : TEST_GROUP_##CppUTestGroup##testGroup () {} \
        void testBody(); }; \
   class TEST_##testGroup##_##testName##_TestShell : public UtestShell { \
 	  virtual Utest* createTest() { return new TEST_##testGroup##_##testName##_Test; } \
   } TEST_##testGroup##_##testName##_TestShell_instance; \
-  TestInstaller TEST_##testGroup##_##testName##_Installer(TEST_##testGroup##_##testName##_TestShell_instance, #testGroup, #testName, __FILE__,__LINE__); \
+  static TestInstaller TEST_##testGroup##_##testName##_Installer(TEST_##testGroup##_##testName##_TestShell_instance, #testGroup, #testName, __FILE__,__LINE__); \
 	void TEST_##testGroup##_##testName##_Test::testBody()
 
 #define IGNORE_TEST(testGroup, testName)\
+  /* External declarations for strict compilers */ \
+  class IGNORE##testGroup##_##testName##_TestShell; \
+  extern IGNORE##testGroup##_##testName##_TestShell IGNORE##testGroup##_##testName##_TestShell_instance; \
+  \
   class IGNORE##testGroup##_##testName##_Test : public TEST_GROUP_##CppUTestGroup##testGroup \
 { public: IGNORE##testGroup##_##testName##_Test () : TEST_GROUP_##CppUTestGroup##testGroup () {} \
   public: void testBodyThatNeverRuns (); }; \
   class IGNORE##testGroup##_##testName##_TestShell : public IgnoredUtestShell { \
 	  virtual Utest* createTest() { return new IGNORE##testGroup##_##testName##_Test; } \
   } IGNORE##testGroup##_##testName##_TestShell_instance; \
-   TestInstaller TEST_##testGroup##testName##_Installer(IGNORE##testGroup##_##testName##_TestShell_instance, #testGroup, #testName, __FILE__,__LINE__); \
+   static TestInstaller TEST_##testGroup##testName##_Installer(IGNORE##testGroup##_##testName##_TestShell_instance, #testGroup, #testName, __FILE__,__LINE__); \
 	void IGNORE##testGroup##_##testName##_Test::testBodyThatNeverRuns ()
 
 #define IMPORT_TEST_GROUP(testGroup) \
   extern int externTestGroup##testGroup;\
+  extern int* p##testGroup; \
   int* p##testGroup = &externTestGroup##testGroup
 
-//Check any boolean condition
+// Different checking macros
 
 #define CHECK(condition)\
   CHECK_LOCATION_TRUE(condition, "CHECK", #condition, __FILE__, __LINE__)
+
+#define CHECK_TEXT(condition, text) \
+  CHECK_LOCATION_TEXT(condition, "CHECK", #condition, text, __FILE__, __LINE__)
 
 #define CHECK_TRUE(condition)\
   CHECK_LOCATION_TRUE(condition, "CHECK_TRUE", #condition, __FILE__, __LINE__)
 
 #define CHECK_FALSE(condition)\
   CHECK_LOCATION_FALSE(condition, "CHECK_FALSE", #condition, __FILE__, __LINE__)
+
+#define CHECK_LOCATION_TEXT(condition, checkString, conditionString, text, file, line) \
+	{ UtestShell::getCurrent()->assertTrueText((condition) != 0, checkString, conditionString, text, file, line); }
 
 #define CHECK_LOCATION_TRUE(condition, checkString, conditionString, file, line)\
   { UtestShell::getCurrent()->assertTrue((condition) != 0, checkString, conditionString, file, line); }
@@ -182,6 +198,24 @@
 
 #define UT_PRINT(text) \
    UT_PRINT_LOCATION(text, __FILE__, __LINE__)
+
+#if CPPUTEST_USE_STD_CPP_LIB
+#define CHECK_THROWS(expected, expression) \
+	{ \
+	SimpleString msg("expected to throw "#expected "\nbut threw nothing"); \
+	bool caught_expected = false; \
+	try { \
+		(expression); \
+	} catch(const expected &) { \
+		caught_expected = true; \
+	} catch(...) { \
+		msg = "expected to throw " #expected "\nbut threw a different type"; \
+	} \
+	if (!caught_expected) { \
+		UtestShell::getCurrent()->fail(msg.asCharString(), __FILE__, __LINE__); \
+	} \
+	}
+#endif /* CPPUTEST_USE_STD_CPP_LIB */
 
 #define UT_CRASH() { UtestShell::crash(); }
 #define RUN_ALL_TESTS(ac, av) CommandLineTestRunner::RunAllTests(ac, av)

@@ -51,37 +51,6 @@
 static jmp_buf test_exit_jmp_buf[10];
 static int jmp_buf_index = 0;
 
-extern "C" {
-
-
-    int PlatformSpecificSetJmp(void (*function) (void* data), void* data)
-    {
-        if (0 == setjmp(test_exit_jmp_buf[jmp_buf_index])) {
-            jmp_buf_index++;
-            function(data);
-            jmp_buf_index--;
-            return 1;
-        }
-        return 0;
-    }
-
-    void PlatformSpecificLongJmp()
-    {
-        jmp_buf_index--;
-        longjmp(test_exit_jmp_buf[jmp_buf_index], 1);
-    }
-
-    void PlatformSpecificRestoreJumpBuffer()
-    {
-        jmp_buf_index--;
-    }
-
-
-} // extern "C"
-
-
-
-
 void PlatformSpecificRunTestInASeperateProcess(UtestShell* shell, TestPlugin* plugin, TestResult* result)
 {
 #ifdef __MINGW32__
@@ -112,6 +81,38 @@ void PlatformSpecificRunTestInASeperateProcess(UtestShell* shell, TestPlugin* pl
 TestOutput::WorkingEnvironment PlatformSpecificGetWorkingEnvironment()
 {
 	return TestOutput::eclipse;
+}
+
+
+extern "C" {
+
+int PlatformSpecificSetJmp(void (*function) (void* data), void* data)
+{
+	if (0 == setjmp(test_exit_jmp_buf[jmp_buf_index])) {
+	    jmp_buf_index++;
+		function(data);
+	    jmp_buf_index--;
+		return 1;
+	}
+	return 0;
+}
+
+/*
+ * MacOSX clang 3.0 doesn't seem to recognize longjmp and thus complains about __no_return_.
+ * The later clang compilers complain when it isn't there. So only way is to check the clang compiler here :(
+ */
+#if !((__clang_major__ == 3) && (__clang_minor__ == 0))
+__no_return__
+#endif
+void PlatformSpecificLongJmp()
+{
+	jmp_buf_index--;
+	longjmp(test_exit_jmp_buf[jmp_buf_index], 1);
+}
+
+void PlatformSpecificRestoreJumpBuffer()
+{
+	jmp_buf_index--;
 }
 
 ///////////// Time in millis
@@ -158,7 +159,10 @@ extern "C" {
 static const char* TimeStringImplementation()
 {
 	time_t tm = time(NULL);
-	return ctime(&tm);
+	static char dateTime[80];
+	struct tm *tmp = localtime(&tm);
+	strftime(dateTime, 80, "%Y-%m-%dT%H:%M:%S", tmp);
+	return dateTime;
 }
 
 static const char* (*timeStringFp) () = TimeStringImplementation;
@@ -223,10 +227,15 @@ extern "C" {
         return (char*) strstr(s1, s2);
     }
 
-    int PlatformSpecificVSNprintf(char *str, size_t size, const char* format, va_list args)
-    {
-        return vsnprintf( str, size, format, args);
-    }
+/* Wish we could add an attribute to the format for discovering mis-use... but the __attribute__(format) seems to not work on va_list */
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
+#endif
+
+int PlatformSpecificVSNprintf(char *str, size_t size, const char* format, va_list args)
+{
+   return vsnprintf( str, size, format, args);
+}
 
     char PlatformSpecificToLower(char c)
     {
@@ -264,36 +273,14 @@ extern "C" {
         return malloc(size);
     }
 
-    void* PlatformSpecificRealloc (void* memory, size_t size)
-    {
-        return realloc(memory, size);
-    }
+double PlatformSpecificFabs(double d)
+{
+   return fabs(d);
+}
 
-    void PlatformSpecificFree(void* memory)
-    {
-        free(memory);
-    }
+int PlatformSpecificIsNan(double d)
+{
+	return isnan((float)d);
+}
 
-    void* PlatformSpecificMemCpy(void* s1, const void* s2, size_t size)
-    {
-        return memcpy(s1, s2, size);
-    }
-
-    void* PlatformSpecificMemset(void* mem, int c, size_t size)
-    {
-        return memset(mem, c, size);
-    }
-
-
-    double PlatformSpecificFabs(double d)
-    {
-        return fabs(d);
-    }
-
-    int PlatformSpecificIsNan(double d)
-    {
-        return isnan((float)d);
-    }
-
-
-} // extern "C"
+}

@@ -63,7 +63,7 @@ void MockNamedValue::setValue(const char* value)
 	value_.stringValue_ = value;
 }
 
-void MockNamedValue::setObjectPointer(const SimpleString& type, void* objectPtr)
+void MockNamedValue::setObjectPointer(const SimpleString& type, const void* objectPtr)
 {
 	type_ = type;
 	value_.objectPointerValue_ = objectPtr;
@@ -108,7 +108,7 @@ void* MockNamedValue::getPointerValue() const
 	return value_.pointerValue_;
 }
 
-void* MockNamedValue::getObjectPointer() const
+const void* MockNamedValue::getObjectPointer() const
 {
 	return value_.objectPointerValue_;
 }
@@ -232,7 +232,7 @@ MockNamedValueListNode* MockNamedValueList::begin()
 struct MockNamedValueComparatorRepositoryNode
 {
 	MockNamedValueComparatorRepositoryNode(const SimpleString& name, MockNamedValueComparator& comparator, MockNamedValueComparatorRepositoryNode* next)
-		: name_(name), comparator_(comparator), next_(next) {};
+		: name_(name), comparator_(comparator), next_(next) {}
 	SimpleString name_;
 	MockNamedValueComparator& comparator_;
 	MockNamedValueComparatorRepositoryNode* next_;

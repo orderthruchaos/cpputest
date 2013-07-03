@@ -28,6 +28,8 @@
 #ifndef D_TestTestingFixture_H
 #define D_TestTestingFixture_H
 
+#include "TestRegistry.h"
+
 class TestTestingFixture
 {
 public:
@@ -42,7 +44,6 @@ public:
 		registry_->setCurrentRegistry(registry_);
 		registry_->addTest(genTest_);
 	}
-	;
 
 	virtual ~TestTestingFixture()
 	{
@@ -86,14 +87,7 @@ public:
 	static void assertPrintContains(StringBufferTestOutput* output,
 			const SimpleString& contains)
 	{
-		if (output->getOutput().contains(contains)) return;
-		SimpleString message("\tActual <");
-		message += output->getOutput().asCharString();
-		message += ">\n";
-		message += "\tdid not contain <";
-		message += contains.asCharString();
-		message += ">\n";
-		FAIL(message.asCharString());
+		STRCMP_CONTAINS(contains.asCharString(), output->getOutput().asCharString());
 
 	}
 

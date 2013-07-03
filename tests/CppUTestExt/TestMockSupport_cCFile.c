@@ -26,14 +26,15 @@
  */
 
 #include "CppUTestExt/MockSupport_c.h"
+#include "TestMockSupport_cCFile.h"
 
-static int typeNameIsEqual(void* object1, void* object2)
+static int typeNameIsEqual(const void* object1, const void* object2)
 {
 	return object1 == object2;
 
 }
 
-static char* typeNameValueToString(void* object)
+static char* typeNameValueToString(const void* object)
 {
 	return (char*) object;
 }
@@ -69,6 +70,11 @@ void all_mock_support_c_calls(void)
 	mock_c()->expectOneCall("boo4")->andReturnPointerValue((void*) 10);
 	mock_c()->actualCall("boo4")->returnValue();
 	mock_c()->returnValue();
+
+	mock_c()->disable();
+	mock_c()->actualCall("disabled");
+	mock_c()->enable();
+	mock_c()->checkExpectations();
 
 	mock_scope_c("scope")->expectOneCall("boo");
 	mock_scope_c("other")->expectedCallsLeft();
